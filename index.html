@@ -394,8 +394,6 @@ function drawGabor(ctx, cx, cy, diameterPx, oriDeg, sfLines) {
   off.height = diameterPx;
   const offCtx = off.getContext('2d');
   const radius = diameterPx / 2;
-  const sigma = radius * 0.42; // 控制高斯包络宽度
-  const sigmaSq2 = 2 * sigma * sigma;
   const imageData = offCtx.createImageData(diameterPx, diameterPx);
   const data = imageData.data;
   const theta = (oriDeg * Math.PI) / 180;
@@ -407,13 +405,12 @@ function drawGabor(ctx, cx, cy, diameterPx, oriDeg, sfLines) {
     for (let x = 0; x < diameterPx; x++) {
       const dx = x - radius + 0.5;
       const dy = y - radius + 0.5;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const distSq = dx * dx + dy * dy;
       const idx = (y * diameterPx + x) * 4;
-      if (dist <= radius) {
+      if (distSq <= radius * radius) {
         const xr = dx * cosT + dy * sinT;
         const phase = 2 * Math.PI * frequency * xr;
-        const gaussian = Math.exp(-(dx * dx + dy * dy) / sigmaSq2);
-        const contrast = Math.sin(phase) * gaussian;
+        const contrast = Math.sin(phase);
         const intensity = Math.max(0, Math.min(255, 127.5 + 127.5 * contrast));
         data[idx] = intensity;
         data[idx + 1] = intensity;
@@ -430,10 +427,10 @@ function drawGabor(ctx, cx, cy, diameterPx, oriDeg, sfLines) {
   offCtx.putImageData(imageData, 0, 0);
   ctx.save();
   ctx.drawImage(off, cx - radius, cy - radius);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = Math.max(2, diameterPx * 0.03);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = Math.max(2, diameterPx * 0.025);
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.arc(cx, cy, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
