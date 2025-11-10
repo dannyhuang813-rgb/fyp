@@ -39,7 +39,6 @@ const instructionOverlay = document.getElementById('instruction-overlay');
 const instructionContinueBtn = document.getElementById('instruction-continue');
 const touchControls = document.getElementById('touch-controls');
 const touchButtons = Array.from(touchControls.querySelectorAll('button'));
-const canvasStage = document.getElementById('canvas-stage');
 const canvas = document.getElementById('stimulus');
 const ctx = canvas.getContext('2d');
 
@@ -192,10 +191,6 @@ function resizeCanvas() {
   const shorter = Math.min(window.innerWidth, window.innerHeight);
   const target = Math.max(200, Math.round(shorter * CANVAS_VIEW_RATIO));
   currentScale = dpr;
-  if (canvasStage) {
-    canvasStage.style.width = `${target}px`;
-    canvasStage.style.height = `${target}px`;
-  }
   canvas.style.width = `${target}px`;
   canvas.style.height = `${target}px`;
   canvas.width = Math.max(1, Math.round(target * dpr));
@@ -430,7 +425,7 @@ function drawGabor(targetCtx, cx, cy, diameterPx, oriDeg, sfLines) {
   off.width = diameterPx;
   off.height = diameterPx;
   const offCtx = off.getContext('2d');
-  const half = diameterPx / 2;
+  const radius = diameterPx / 2;
   const imageData = offCtx.createImageData(diameterPx, diameterPx);
   const data = imageData.data;
   const theta = (oriDeg * Math.PI) / 180;
@@ -438,35 +433,37 @@ function drawGabor(targetCtx, cx, cy, diameterPx, oriDeg, sfLines) {
   const sinT = Math.sin(theta);
   const cycles = sfLines / 2; // 直径上期望的黑白条数量 → cycles = sfLines / 2
   const frequency = cycles / diameterPx; // 将可见条纹数量换算为每像素周期
-  const sigma = diameterPx * 0.22; // 高斯包络宽度，控制边缘模糊
-  const sigma2 = 2 * sigma * sigma;
-  const base = 127.5;
-
   for (let y = 0; y < diameterPx; y++) {
     for (let x = 0; x < diameterPx; x++) {
-      const dx = x - half + 0.5;
-      const dy = y - half + 0.5;
-      const xr = dx * cosT + dy * sinT;
-      const gaussian = Math.exp(-(dx * dx + dy * dy) / sigma2);
-      const phase = 2 * Math.PI * frequency * xr;
-      const carrier = Math.sin(phase);
-      const contrast = gaussian * carrier;
-      const intensity = Math.max(0, Math.min(255, base + 127.5 * contrast));
+      const dx = x - radius + 0.5;
+      const dy = y - radius + 0.5;
+      const distSq = dx * dx + dy * dy;
       const idx = (y * diameterPx + x) * 4;
-      data[idx] = intensity;
-      data[idx + 1] = intensity;
-      data[idx + 2] = intensity;
-      data[idx + 3] = 255;
+      if (distSq <= radius * radius) {
+        const xr = dx * cosT + dy * sinT;
+        const phase = 2 * Math.PI * frequency * xr;
+        const contrast = Math.sin(phase);
+        const intensity = Math.max(0, Math.min(255, 127.5 + 127.5 * contrast));
+        data[idx] = intensity;
+        data[idx + 1] = intensity;
+        data[idx + 2] = intensity;
+        data[idx + 3] = 255;
+      } else {
+        data[idx] = 0;
+        data[idx + 1] = 0;
+        data[idx + 2] = 0;
+        data[idx + 3] = 0;
+      }
     }
   }
-
   offCtx.putImageData(imageData, 0, 0);
   targetCtx.save();
-  targetCtx.drawImage(off, cx - half, cy - half);
-  targetCtx.lineWidth = Math.max(2, diameterPx * 0.02);
+  targetCtx.drawImage(off, cx - radius, cy - radius);
   targetCtx.strokeStyle = '#000000';
-  targetCtx.strokeRect(cx - half + targetCtx.lineWidth / 2, cy - half + targetCtx.lineWidth / 2,
-    diameterPx - targetCtx.lineWidth, diameterPx - targetCtx.lineWidth);
+  targetCtx.lineWidth = Math.max(2, diameterPx * 0.025);
+  targetCtx.beginPath();
+  targetCtx.arc(cx, cy, radius - targetCtx.lineWidth / 2, 0, Math.PI * 2);
+  targetCtx.stroke();
   targetCtx.restore();
 }
 
