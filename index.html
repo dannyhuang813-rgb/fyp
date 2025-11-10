@@ -72,6 +72,39 @@ button:disabled {
 #experiment-screen.active {
   display: flex;
 }
+#instruction-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  z-index: 10;
+}
+#instruction-overlay.active {
+  display: flex;
+}
+#instruction-overlay .panel {
+  max-width: min(520px, 92vw);
+  background: rgba(30, 30, 30, 0.92);
+  padding: 32px 28px;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+#instruction-overlay p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 1.05rem;
+}
+#instruction-overlay .panel button {
+  margin-top: 8px;
+}
 #message {
   position: absolute;
   top: 50%;
@@ -106,6 +139,15 @@ canvas {
     <p style="font-size:0.9rem;margin-top:24px;color:#e0e0e0;">按 A 键选择 A 类，按 B 键选择 B 类。按 Escape 可随时终止并下载数据。</p>
   </div>
   <div id="experiment-screen">
+    <div id="instruction-overlay">
+      <div class="panel">
+        <h2 style="margin:0;font-size:1.6rem;">任务说明</h2>
+        <p>屏幕中央会出现一个黑色圆边框内的条纹图形，请专注于图形本身。</p>
+        <p>你的任务只有一个：判断图形属于 A 类还是 B 类。看到后请按键盘 <strong>A</strong> 键表示 A 类，按 <strong>B</strong> 键表示 B 类。</p>
+        <p>请尽量快速且准确作答。如果长时间未作答将记为超时。按下空格键或点击下方按钮即可开始实验。</p>
+        <button id="instruction-continue">我已了解，开始实验</button>
+      </div>
+    </div>
     <canvas id="stimulus" width="800" height="600"></canvas>
     <div id="message"></div>
   </div>
@@ -147,6 +189,8 @@ const participantInput = document.getElementById('participant');
 const startScreen = document.getElementById('start-screen');
 const experimentScreen = document.getElementById('experiment-screen');
 const messageEl = document.getElementById('message');
+const instructionOverlay = document.getElementById('instruction-overlay');
+const instructionContinueBtn = document.getElementById('instruction-continue');
 const canvas = document.getElementById('stimulus');
 const ctx = canvas.getContext('2d');
 
@@ -617,6 +661,32 @@ function finishExperiment(participant, isAbort = false) {
   }
 }
 
+function showInstructions() {
+  return new Promise(resolve => {
+    instructionOverlay.classList.add('active');
+    const proceed = () => {
+      cleanup();
+      instructionOverlay.classList.remove('active');
+      resolve();
+    };
+    const onClick = () => {
+      proceed();
+    };
+    const onKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Enter') {
+        event.preventDefault();
+        proceed();
+      }
+    };
+    const cleanup = () => {
+      instructionContinueBtn.removeEventListener('click', onClick);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+    instructionContinueBtn.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKeyDown, true);
+  });
+}
+
 async function runExperiment(participant) {
   experimentAborted = false;
   clearCanvas();
@@ -656,6 +726,9 @@ startBtn.addEventListener('click', async () => {
   startScreen.style.display = 'none';
   experimentScreen.classList.add('active');
   resizeCanvas();
+  clearCanvas();
+  setMessage('');
+  await showInstructions();
   runExperiment(participant);
 });
 
