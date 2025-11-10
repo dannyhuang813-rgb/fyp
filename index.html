@@ -1,13 +1,188 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>fyp placeholder</title>
-  <style>body{margin:0;background:#888;color:#fff;font:18px/1.6 system-ui,Arial}</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Gabor 分类实验</title>
+<style>
+:root {
+  color-scheme: dark;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #5a5a5a;
+  color: #f0f0f0;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+main {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#start-screen {
+  width: min(460px, 90vw);
+  margin: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 32px 28px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+#start-screen input {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  border: none;
+}
+button {
+  cursor: pointer;
+  padding: 12px 24px;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  border: none;
+  background: #2b9cdb;
+  color: white;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#experiment-screen {
+  display: none;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  align-items: center;
+  justify-content: center;
+}
+#experiment-screen.active {
+  display: flex;
+}
+#instruction-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  z-index: 10;
+}
+#instruction-overlay.active {
+  display: flex;
+}
+#instruction-overlay .panel {
+  max-width: min(560px, 92vw);
+  background: rgba(30, 30, 30, 0.92);
+  padding: 32px 28px;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+#instruction-overlay p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 1.05rem;
+}
+#instruction-overlay .panel button {
+  margin-top: 8px;
+}
+#message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(24px, 8vw, 72px);
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+canvas {
+  width: 80vmin;
+  height: 80vmin;
+  max-width: min(92vw, 92vh);
+  max-height: min(92vw, 92vh);
+  display: block;
+  background: #7a7a7a;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+#touch-controls {
+  position: absolute;
+  bottom: clamp(12px, 6vh, 42px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: clamp(16px, 5vw, 36px);
+}
+#touch-controls button {
+  min-width: clamp(120px, 24vw, 220px);
+  min-height: clamp(56px, 12vh, 120px);
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: 700;
+  border-radius: 18px;
+  background: rgba(40, 40, 40, 0.72);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border: 3px solid rgba(255, 255, 255, 0.2);
+}
+#touch-controls button:active {
+  transform: translateY(2px);
+}
+@media (pointer: coarse) {
+  #touch-controls {
+    display: flex;
+  }
+}
+</style>
 </head>
 <body>
-  <h1 style="text-align:center;margin-top:20vh">Repo initialized ✅</h1>
-  <p style="text-align:center">之后点铅笔编辑这个 <code>index.html</code>，把内容替换成你的实验网页。</p>
+<main>
+  <div id="start-screen">
+    <h1>Gabor 分类任务</h1>
+    <p>请输入被试编号后点击开始。</p>
+    <input id="participant" placeholder="participant" autocomplete="off" />
+    <button id="start-btn">Start</button>
+    <p style="font-size:0.95rem;margin-top:8px;color:#f5f5f5;">可使用键盘、触屏按钮或兼容手柄（A 键=类别 A，B 键=类别 B）。</p>
+    <p style="font-size:0.85rem;margin-top:4px;color:#e0e0e0;">按 Escape 或手柄的 Start/Back 可随时终止并立即下载数据。</p>
+  </div>
+  <div id="experiment-screen">
+    <div id="instruction-overlay">
+      <div class="panel">
+        <h2 style="margin:0;font-size:1.6rem;">任务说明</h2>
+        <p>屏幕中央会出现一个黑色圆边框内的条纹图形，请专注于图形本身。</p>
+        <p>你的任务只有一个：判断图形属于 A 类还是 B 类。可以按键盘 <strong>A</strong>/<strong>B</strong>，点触屏幕按钮，或使用手柄上的 <strong>A</strong>/<strong>B</strong> 按键作答。</p>
+        <p>请尽量快速且准确作答。如果长时间未作答将记为超时。按下空格键、手柄的 A 键或点击下方按钮即可开始实验。</p>
+        <button id="instruction-continue">我已了解，开始实验</button>
+      </div>
+    </div>
+    <canvas id="stimulus" width="800" height="600"></canvas>
+    <div id="message"></div>
+    <div id="touch-controls">
+      <button id="touch-a" data-key="a">A 类</button>
+      <button id="touch-b" data-key="b">B 类</button>
+    </div>
+  </div>
+</main>
+<script type="module" src="experiment.js"></script>
 </body>
 </html>
