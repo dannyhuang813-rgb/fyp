@@ -8,36 +8,27 @@
 :root {
   color-scheme: dark;
 }
-html,
 body {
   margin: 0;
-  height: 100%;
   background: #5a5a5a;
   color: #f0f0f0;
   font-family: "Helvetica Neue", Arial, sans-serif;
-}
-body {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 main {
   flex: 1;
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-#start-screen {
-  width: min(420px, 90vw);
+#start-screen,
+#experiment-screen {
+  width: 100%;
+  max-width: 480px;
   margin: auto;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 32px 28px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 #start-screen input {
   width: 100%;
@@ -62,37 +53,21 @@ button:disabled {
 }
 #experiment-screen {
   display: none;
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+#message {
+  min-height: 2.5rem;
+  font-size: 1.4rem;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
-#experiment-screen.active {
-  display: flex;
-}
-#message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: clamp(24px, 8vw, 72px);
-  font-weight: 700;
-  text-shadow: 0 0 12px rgba(0, 0, 0, 0.45);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 120ms ease-out;
-}
 canvas {
-  width: 80vmin;
-  height: 80vmin;
-  max-width: min(92vw, 92vh);
-  max-height: min(92vw, 92vh);
-  display: block;
   background: #7a7a7a;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
 }
 </style>
 </head>
@@ -106,8 +81,8 @@ canvas {
     <p style="font-size:0.9rem;margin-top:24px;color:#e0e0e0;">按 A 键选择 A 类，按 B 键选择 B 类。按 Escape 可随时终止并下载数据。</p>
   </div>
   <div id="experiment-screen">
-    <canvas id="stimulus" width="800" height="600"></canvas>
     <div id="message"></div>
+    <canvas id="stimulus" width="800" height="600"></canvas>
   </div>
 </main>
 <script>
@@ -127,7 +102,6 @@ const ITI_MS = 0; // ← 延迟占位
 
 const ORI_MIN = -15, ORI_MAX = 15;
 const SF_LINES = [3, 4, 5, 6]; // 可见条纹总数（黑+白）
-const CANVAS_VIEW_RATIO = 0.82; // 画布占短边比例
 
 // —— RB 判定（仅方向）——
 const RB_ABS_ORI_THRESHOLD = 7; // |ori|<=7° → A，否则 B
@@ -150,10 +124,6 @@ const messageEl = document.getElementById('message');
 const canvas = document.getElementById('stimulus');
 const ctx = canvas.getContext('2d');
 
-let canvasLogicalWidth = Math.max(200, Math.round(Math.min(window.innerWidth, window.innerHeight) * CANVAS_VIEW_RATIO));
-let canvasLogicalHeight = canvasLogicalWidth;
-let currentScale = window.devicePixelRatio || 1;
-
 let experimentAborted = false;
 const dataRows = [];
 
@@ -163,17 +133,13 @@ dataRows.push(CSV_HEADER);
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const shorter = Math.min(window.innerWidth, window.innerHeight);
-  const target = Math.max(200, Math.round(shorter * CANVAS_VIEW_RATIO));
-  canvasLogicalWidth = target;
-  canvasLogicalHeight = target;
-  currentScale = dpr;
-  canvas.style.width = `${target}px`;
-  canvas.style.height = `${target}px`;
-  canvas.width = Math.max(1, Math.round(target * dpr));
-  canvas.height = Math.max(1, Math.round(target * dpr));
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  clearCanvas();
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -370,21 +336,19 @@ function makeTrialsII(participant) {
 
 function clearCanvas() {
   ctx.save();
-  ctx.setTransform(currentScale, 0, 0, currentScale, 0, 0);
   ctx.fillStyle = '#7a7a7a';
-  ctx.fillRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
-  ctx.setTransform(currentScale, 0, 0, currentScale, 0, 0);
 }
 
 function drawFixation() {
   clearCanvas();
-  const cx = canvasLogicalWidth / 2;
-  const cy = canvasLogicalHeight / 2;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
   ctx.save();
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = Math.max(2, Math.min(canvasLogicalWidth, canvasLogicalHeight) * 0.004);
-  const size = Math.min(canvasLogicalWidth, canvasLogicalHeight) * 0.02;
+  ctx.lineWidth = 4;
+  const size = Math.min(canvas.width, canvas.height) * 0.02;
   ctx.beginPath();
   ctx.moveTo(cx - size, cy);
   ctx.lineTo(cx + size, cy);
@@ -411,48 +375,46 @@ function drawGabor(ctx, cx, cy, diameterPx, oriDeg, sfLines) {
     for (let x = 0; x < diameterPx; x++) {
       const dx = x - radius + 0.5;
       const dy = y - radius + 0.5;
-      const distSq = dx * dx + dy * dy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       const idx = (y * diameterPx + x) * 4;
-      if (distSq <= radius * radius) {
+      if (dist <= radius) {
         const xr = dx * cosT + dy * sinT;
         const phase = 2 * Math.PI * frequency * xr;
-        const contrast = Math.sin(phase);
-        const intensity = Math.max(0, Math.min(255, 127.5 + 127.5 * contrast));
+        const intensity = 127.5 + 127.5 * Math.sin(phase);
         data[idx] = intensity;
         data[idx + 1] = intensity;
         data[idx + 2] = intensity;
         data[idx + 3] = 255;
       } else {
-        data[idx] = 0;
-        data[idx + 1] = 0;
-        data[idx + 2] = 0;
-        data[idx + 3] = 0;
+        data[idx] = 122;
+        data[idx + 1] = 122;
+        data[idx + 2] = 122;
+        data[idx + 3] = 255;
       }
     }
   }
   offCtx.putImageData(imageData, 0, 0);
   ctx.save();
   ctx.drawImage(off, cx - radius, cy - radius);
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.max(2, diameterPx * 0.025);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = Math.max(2, diameterPx * 0.015);
   ctx.beginPath();
-  ctx.arc(cx, cy, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
 
 function renderStimulus(ori, sfLines) {
   clearCanvas();
-  const cx = canvasLogicalWidth / 2;
-  const cy = canvasLogicalHeight / 2;
-  const diameter = Math.max(32, Math.round(Math.min(canvasLogicalWidth, canvasLogicalHeight) * 0.36));
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const diameter = Math.round(Math.min(canvas.width, canvas.height) * 0.36);
   drawGabor(ctx, cx, cy, diameter, ori, sfLines);
 }
 
 function setMessage(text, color = '#f0f0f0') {
   messageEl.textContent = text;
   messageEl.style.color = color;
-  messageEl.style.opacity = text ? 1 : 0;
 }
 
 function sleep(ms) {
@@ -467,7 +429,7 @@ async function runTrial(blockName, trial, trialIndex, participant) {
   const correctKey = trial.label === 'A' ? 'a' : 'b';
   const trialStartUTC = new Date().toISOString();
   if (USE_FIXATION) {
-    setMessage('');
+    setMessage('+');
     drawFixation();
     await sleep(FIX_MS);
   }
@@ -651,12 +613,10 @@ startBtn.addEventListener('click', async () => {
     console.warn(err);
   }
   startScreen.style.display = 'none';
-  experimentScreen.classList.add('active');
+  experimentScreen.style.display = 'flex';
   resizeCanvas();
   runExperiment(participant);
 });
-
-setMessage('');
 </script>
 </body>
 </html>
